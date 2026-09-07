@@ -44,7 +44,7 @@ short version:
 
 | Variable                       | Required | Purpose                                                            |
 | ------------------------------ | -------- | ------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SITE_URL`         | Yes      | Canonical URLs, Open Graph tags, `robots.txt`, `sitemap.xml`       |
+| `NEXT_PUBLIC_SITE_URL`         | Rec.     | Canonical URLs, Open Graph tags, `robots.txt`, `sitemap.xml`       |
 | `NEXT_PUBLIC_DEFAULT_CURRENCY` | No       | Currency shown before the visitor picks one (default `INR`)        |
 | `TRAVELPAYOUTS_API_TOKEN`      | Prod     | Travelpayouts API token — **server only**                          |
 | `TRAVELPAYOUTS_MARKER`         | Prod     | Affiliate marker used to attribute clicks — **server only**        |
@@ -58,6 +58,12 @@ short version:
 | `UPSTASH_REDIS_REST_URL`       | No       | Upstash Redis REST URL — caching and rate limiting                 |
 | `UPSTASH_REDIS_REST_TOKEN`     | No       | Upstash Redis REST token                                           |
 | `EXCHANGE_RATES_API_URL`       | No       | Real exchange-rate source; without it we never convert a price     |
+
+`NEXT_PUBLIC_SITE_URL` is recommended rather than required: when it isn't set,
+the site origin falls back to the URL Vercel injects
+(`VERCEL_PROJECT_PRODUCTION_URL`, then `VERCEL_URL`), so a deployment still
+emits correct absolute URLs instead of pointing at localhost. Set it explicitly
+once you have a custom domain.
 
 **Only `NEXT_PUBLIC_*` variables reach the browser.** Travelpayouts credentials
 are read exclusively through `src/config/env.ts`, which is `server-only` — there
