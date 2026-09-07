@@ -52,6 +52,9 @@ function getSecret(): string {
   // stable secret across instances; fall back to an ephemeral one in dev.
   const derived = process.env.TRAVELPAYOUTS_API_TOKEN?.trim();
   if (derived) {
+    // The salt below is domain separation, not brand copy: rotating it would
+    // change the derived secret and invalidate every /go link still inside its
+    // 12-hour window, so it stayed as-is through the rename.
     cachedSecret = createHmac("sha256", derived).update("tripora:outbound").digest("hex");
     return cachedSecret;
   }

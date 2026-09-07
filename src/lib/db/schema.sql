@@ -1,4 +1,4 @@
--- Tripora schema. Everything here is optional: the app runs without a database.
+-- bookmyflight.lol schema. Everything here is optional: the app runs without a database.
 -- There are deliberately no user/account tables — the MVP has no authentication.
 
 create table if not exists destinations (

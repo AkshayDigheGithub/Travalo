@@ -50,7 +50,7 @@ export default function OpengraphImage() {
             fontWeight: 700,
           }}
         >
-          T
+          b
         </div>
         <div style={{ fontSize: 40, fontWeight: 600, color: "#1a2126" }}>{siteConfig.name}</div>
       </div>

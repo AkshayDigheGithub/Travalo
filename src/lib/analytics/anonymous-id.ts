@@ -1,4 +1,4 @@
-const STORAGE_KEY = "tripora.aid";
+const STORAGE_KEY = "bookmyflight.aid";
 
 /**
  * A random id scoped to the browser session. It is deliberately not persisted
