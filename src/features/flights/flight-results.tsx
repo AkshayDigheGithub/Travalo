@@ -3,6 +3,8 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { CalendarClock } from "lucide-react";
+
 import { MobileFilters, SortDropdown } from "@/components/common/filter-shell";
 import { FlightCardSkeleton, SearchProgress } from "@/components/common/loading-skeleton";
 import { MockDataNotice } from "@/components/common/mock-notice";
@@ -10,8 +12,9 @@ import { EmptyState, ErrorState } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
 import { track } from "@/lib/analytics/client";
 import { CABIN_LABELS } from "@/lib/validation/flights";
+import { formatShortDate } from "@/lib/utils/date";
 import { flightSearchQuery, type FlightSearchState } from "@/lib/utils/search-params";
-import type { FlightSearchResponse } from "@/types/flight";
+import type { DateFlexibility, FlightSearchResponse } from "@/types/flight";
 import { FlightCard } from "./flight-card";
 import { FlightFilterPanel } from "./flight-filters";
 import {
@@ -92,6 +95,10 @@ export function FlightResults({ state }: { state: FlightSearchState }) {
     <div className="container-page py-6 lg:py-8">
       {data.isMock ? <MockDataNotice className="mb-5" /> : null}
 
+      {results.length > 0 && data.dateFlexibility !== "exact" ? (
+        <NearbyDatesNotice flexibility={data.dateFlexibility} state={state} className="mb-5" />
+      ) : null}
+
       {state.cabin !== "economy" ? (
         <p className="mb-5 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
           Prices shown are the lowest available fares for this route.{" "}
@@ -134,7 +141,11 @@ export function FlightResults({ state }: { state: FlightSearchState }) {
           {results.length === 0 ? (
             <EmptyState
               title="We couldn't find any flights."
-              description="Try different dates, a nearby airport, or turn off the non-stop filter."
+              description={
+                state.directOnly
+                  ? "We looked at nearby dates too. Try turning off the non-stop filter, another airport, or a different month."
+                  : "We looked at nearby dates too. Try another airport or a different month."
+              }
             />
           ) : visible.length === 0 ? (
             <EmptyState
@@ -169,6 +180,49 @@ export function FlightResults({ state }: { state: FlightSearchState }) {
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Shown when the provider had no fares for the requested dates and the search
+ * fell back to nearby ones. Every card carries its own dates, so this explains
+ * why they differ rather than standing in for them.
+ */
+function NearbyDatesNotice({
+  flexibility,
+  state,
+  className,
+}: {
+  flexibility: Exclude<DateFlexibility, "exact">;
+  state: FlightSearchState;
+  className?: string;
+}) {
+  const requested =
+    state.return && flexibility === "flexible-return"
+      ? formatShortDate(state.return)
+      : `${formatShortDate(state.departure)}${state.return ? ` – ${formatShortDate(state.return)}` : ""}`;
+
+  return (
+    <div
+      className={`flex items-start gap-2.5 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted ${className ?? ""}`}
+      role="status"
+    >
+      <CalendarClock className="mt-0.5 size-4 shrink-0 text-ink-subtle" aria-hidden="true" />
+      <p>
+        {flexibility === "flexible-return" ? (
+          <>
+            <span className="font-medium text-ink">No fares for a return on {requested}.</span>{" "}
+            These leave on {formatShortDate(state.departure)} as you asked and come back on the
+            nearest dates we could price.
+          </>
+        ) : (
+          <>
+            <span className="font-medium text-ink">No fares for {requested}.</span> These are the
+            closest dates we could price — check each result&apos;s dates before you book.
+          </>
+        )}
+      </p>
     </div>
   );
 }

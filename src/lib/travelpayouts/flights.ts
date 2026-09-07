@@ -4,9 +4,14 @@ import type { CurrencyCode } from "@/config/currencies";
 import { AppError } from "@/lib/errors";
 import { signOutboundUrl } from "@/lib/affiliate/link";
 import { convert } from "@/lib/currency/rates";
-import { addMinutesToLocalIso } from "@/lib/utils/date";
+import { addMinutesToLocalIso, daysBetween, todayIso } from "@/lib/utils/date";
 import type { FlightSearchInput } from "@/lib/validation/flights";
-import type { FlightLeg, FlightResult, FlightSearchResponse } from "@/types/flight";
+import type {
+  DateFlexibility,
+  FlightLeg,
+  FlightResult,
+  FlightSearchResponse,
+} from "@/types/flight";
 import type { SearchContext } from "@/lib/providers/types";
 import { resolveAirlines } from "./airlines";
 import { TP_HOSTS, tpFetch } from "./client";
@@ -22,16 +27,54 @@ import type { TpFlightPrice, TpFlightPricesResponse } from "./types";
  * truth. The endpoint has no cabin-class parameter: the traveller's cabin
  * choice is carried into the partner link and surfaced in the UI instead of
  * being silently applied to prices it doesn't apply to.
+ *
+ * Because the fare cache is keyed on exact dates, a perfectly ordinary route
+ * can have nothing priced for one particular date pair — asking only for the
+ * exact dates is how a real route ends up showing zero results. So a search
+ * that comes back empty is retried with the dates progressively relaxed, and
+ * the response records which attempt answered so the UI can say so.
  */
 
 const RESULT_LIMIT = 60;
 /** Cached fares change slowly; a short TTL keeps the quota and the page fast. */
 const CACHE_TTL_SECONDS = 60 * 15;
+/** How far from the requested dates a relaxed retry is allowed to wander. */
+const FLEX_WINDOW_DAYS = 7;
 
-export async function searchFlights(
+type DateAttempt = {
+  flexibility: DateFlexibility;
+  /** `YYYY-MM-DD` for a fixed day, `YYYY-MM` to let the provider pick the day. */
+  departureAt: string;
+  /** Omitted to accept any return date the provider has priced. */
+  returnAt?: string;
+};
+
+/**
+ * The searches we are willing to make, narrowest first. Each step gives up one
+ * more constraint on the dates; nothing else about the search is relaxed.
+ */
+function dateAttempts(input: FlightSearchInput): DateAttempt[] {
+  const month = (date: string) => date.slice(0, 7);
+
+  if (!input.return) {
+    return [
+      { flexibility: "exact", departureAt: input.departure },
+      { flexibility: "flexible-dates", departureAt: month(input.departure) },
+    ];
+  }
+
+  return [
+    { flexibility: "exact", departureAt: input.departure, returnAt: input.return },
+    // Same outbound day, whichever return dates the provider has priced.
+    { flexibility: "flexible-return", departureAt: input.departure },
+    { flexibility: "flexible-dates", departureAt: month(input.departure) },
+  ];
+}
+
+async function fetchPrices(
   input: FlightSearchInput,
-  ctx: SearchContext,
-): Promise<FlightSearchResponse> {
+  attempt: DateAttempt,
+): Promise<TpFlightPricesResponse> {
   const payload = await tpFetch<TpFlightPricesResponse>(
     TP_HOSTS.api,
     "/aviasales/v3/prices_for_dates",
@@ -41,8 +84,8 @@ export async function searchFlights(
       params: {
         origin: input.from,
         destination: input.to,
-        departure_at: input.departure,
-        return_at: input.return,
+        departure_at: attempt.departureAt,
+        return_at: attempt.returnAt,
         one_way: input.return ? "false" : "true",
         direct: input.directOnly ? "true" : "false",
         currency: input.currency.toLowerCase(),
@@ -58,8 +101,44 @@ export async function searchFlights(
     throw new AppError("provider_malformed", payload.error ?? "provider reported failure");
   }
 
-  const records = Array.isArray(payload.data) ? payload.data : [];
-  const providerCurrency = (payload.currency ?? input.currency).toUpperCase();
+  return payload;
+}
+
+/**
+ * Drops fares a relaxed retry should not have brought back: departures in the
+ * past, dates too far from the ones asked for, and one-way fares answering a
+ * round-trip search.
+ */
+function usableRecords(
+  records: TpFlightPrice[],
+  input: FlightSearchInput,
+  attempt: DateAttempt,
+): TpFlightPrice[] {
+  if (attempt.flexibility === "exact") return records;
+
+  const today = todayIso();
+
+  return records.filter((record) => {
+    const departure = record.departure_at?.slice(0, 10);
+    if (!departure || departure < today) return false;
+    if (Math.abs(daysBetween(input.departure, departure)) > FLEX_WINDOW_DAYS) return false;
+
+    if (!input.return) return true;
+
+    const back = record.return_at?.slice(0, 10);
+    if (!back || back < departure) return false;
+    return Math.abs(daysBetween(input.return, back)) <= FLEX_WINDOW_DAYS;
+  });
+}
+
+async function normalizeRecords(args: {
+  records: TpFlightPrice[];
+  input: FlightSearchInput;
+  ctx: SearchContext;
+  providerCurrency: string;
+}): Promise<FlightResult[]> {
+  const { records, input, ctx, providerCurrency } = args;
+
   const airlines = await resolveAirlines([
     ...new Set(records.map((record) => record.airline).filter(Boolean)),
   ]);
@@ -83,7 +162,42 @@ export async function searchFlights(
     if (normalized) results.push(normalized);
   }
 
-  return buildResponse(results, input.currency, ctx.searchId, false);
+  return results;
+}
+
+export async function searchFlights(
+  input: FlightSearchInput,
+  ctx: SearchContext,
+): Promise<FlightSearchResponse> {
+  const attempts = dateAttempts(input);
+
+  for (const [index, attempt] of attempts.entries()) {
+    let payload: TpFlightPricesResponse;
+    try {
+      payload = await fetchPrices(input, attempt);
+    } catch (error) {
+      // The first attempt is the search the traveller asked for, so its failure
+      // is the search's failure. A relaxed retry is a bonus on top: if the
+      // provider stumbles there, stop rather than turn a wider net into an error.
+      if (index === 0) throw error;
+      break;
+    }
+
+    const records = usableRecords(Array.isArray(payload.data) ? payload.data : [], input, attempt);
+    if (records.length === 0) continue;
+
+    const results = await normalizeRecords({
+      records,
+      input,
+      ctx,
+      providerCurrency: (payload.currency ?? input.currency).toUpperCase(),
+    });
+    if (results.length === 0) continue;
+
+    return buildResponse(results, input.currency, ctx.searchId, false, attempt.flexibility);
+  }
+
+  return buildResponse([], input.currency, ctx.searchId, false, "exact");
 }
 
 type NormalizeArgs = {
@@ -214,6 +328,7 @@ export function buildResponse(
   currency: CurrencyCode,
   searchId: string,
   isMock: boolean,
+  dateFlexibility: DateFlexibility = "exact",
 ): FlightSearchResponse {
   const prices = results.map((result) => result.price);
   const durations = results
@@ -234,6 +349,7 @@ export function buildResponse(
       ? { min: Math.min(...durations), max: Math.max(...durations) }
       : null,
     isMock,
+    dateFlexibility,
     retrievedAt: Date.now(),
   };
 }
