@@ -1,4 +1,4 @@
-# Tripora
+# bookmyflight.lol
 
 A global flight and hotel metasearch, built with Next.js and designed to run on
 Vercel. Search flights and hotels worldwide, compare and filter the results,

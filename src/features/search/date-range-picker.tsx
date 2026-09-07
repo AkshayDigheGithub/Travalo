@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils/cn";
 import "react-day-picker/style.css";
 
 const dayPickerClassNames = {
-  root: "rdp-tripora",
+  root: "rdp-bookmyflight",
   months: "flex flex-col sm:flex-row gap-6",
   month_caption: "flex justify-center pb-3 text-sm font-semibold text-ink",
   nav: "absolute inset-x-0 top-0 flex items-center justify-between",
