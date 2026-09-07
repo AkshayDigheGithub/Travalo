@@ -1,0 +1,177 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Tripora design tokens.
+ * Warm ivory canvas + ink text + a single brand accent (kingfisher teal).
+ * Amber is reserved for price/deal emphasis only.
+ */
+@theme {
+  --color-canvas: oklch(0.985 0.004 85);
+  --color-surface: oklch(1 0 0);
+  --color-surface-muted: oklch(0.968 0.006 85);
+  --color-ink: oklch(0.22 0.015 240);
+  --color-ink-muted: oklch(0.48 0.012 240);
+  --color-ink-subtle: oklch(0.62 0.01 240);
+  --color-line: oklch(0.91 0.006 240);
+  --color-line-strong: oklch(0.84 0.008 240);
+
+  --color-brand-50: oklch(0.972 0.022 195);
+  --color-brand-100: oklch(0.938 0.045 195);
+  --color-brand-200: oklch(0.878 0.072 194);
+  --color-brand-300: oklch(0.8 0.093 193);
+  --color-brand-400: oklch(0.706 0.104 192);
+  --color-brand-500: oklch(0.618 0.099 191);
+  --color-brand-600: oklch(0.532 0.087 191);
+  --color-brand-700: oklch(0.452 0.072 192);
+  --color-brand-800: oklch(0.383 0.058 193);
+  --color-brand-900: oklch(0.322 0.045 194);
+
+  --color-accent-500: oklch(0.76 0.148 68);
+  --color-accent-600: oklch(0.68 0.155 55);
+  --color-accent-50: oklch(0.968 0.03 80);
+
+  --color-positive: oklch(0.58 0.12 155);
+  --color-danger: oklch(0.58 0.19 27);
+  --color-danger-50: oklch(0.96 0.02 27);
+
+  --radius-card: 1rem;
+  --radius-panel: 1.5rem;
+
+  --shadow-card:
+    0 1px 2px oklch(0.22 0.015 240 / 0.04), 0 8px 24px -12px oklch(0.22 0.015 240 / 0.14);
+  --shadow-lift:
+    0 2px 4px oklch(0.22 0.015 240 / 0.05), 0 18px 40px -18px oklch(0.22 0.015 240 / 0.22);
+  --shadow-float:
+    0 4px 12px oklch(0.22 0.015 240 / 0.06), 0 32px 64px -28px oklch(0.22 0.015 240 / 0.3);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
+  --animate-rise: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-accordion-down: accordion-down 0.22s ease-out;
+  --animate-accordion-up: accordion-up 0.22s ease-out;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Hide the native calendar/clear affordances so our own controls stay consistent. */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .container-page {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 80rem;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-page {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-page {
+      padding-inline: 2rem;
+    }
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
