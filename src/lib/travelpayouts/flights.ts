@@ -4,6 +4,7 @@ import type { CurrencyCode } from "@/config/currencies";
 import { AppError } from "@/lib/errors";
 import { signOutboundUrl } from "@/lib/affiliate/link";
 import { convert } from "@/lib/currency/rates";
+import { logger } from "@/lib/logger";
 import { addMinutesToLocalIso, daysBetween, todayIso } from "@/lib/utils/date";
 import type { FlightSearchInput } from "@/lib/validation/flights";
 import type {
@@ -177,9 +178,16 @@ export async function searchFlights(
       payload = await fetchPrices(input, attempt);
     } catch (error) {
       // The first attempt is the search the traveller asked for, so its failure
-      // is the search's failure. A relaxed retry is a bonus on top: if the
-      // provider stumbles there, stop rather than turn a wider net into an error.
+      // is the search's failure. A relaxed retry is a bonus on top, and never
+      // reported as one: a rejected query moves on to the next, looser attempt,
+      // while a timeout or an outage stops us spending more of the traveller's
+      // wait on a provider that is already struggling.
       if (index === 0) throw error;
+      logger.warn("flight_fallback_failed", {
+        flexibility: attempt.flexibility,
+        error: String(error),
+      });
+      if (error instanceof AppError && error.code === "provider_malformed") continue;
       break;
     }
 
