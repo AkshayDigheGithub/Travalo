@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { DEFAULT_CURRENCY, isCurrencyCode, type CurrencyCode } from "@/config/currencies";
 
-export const CURRENCY_COOKIE = "tripora.currency";
+export const CURRENCY_COOKIE = "bookmyflight.currency";
 
 type CurrencyContextValue = {
   currency: CurrencyCode;

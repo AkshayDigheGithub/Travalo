@@ -32,14 +32,14 @@ function resolveSiteUrl(): string {
  * Change the values here to rebrand the product; nothing else hardcodes the name.
  */
 export const siteConfig = {
-  name: "Tripora",
+  name: "bookmyflight.lol",
   tagline: "Compare flights and hotels worldwide.",
   description:
-    "Tripora is a global flight and hotel metasearch. Compare fares and stays across hundreds of travel sites, then book directly with the provider.",
+    "bookmyflight.lol is a global flight and hotel metasearch. Compare fares and stays across hundreds of travel sites, then book directly with the provider.",
   url: resolveSiteUrl(),
   locale: "en",
-  contactEmail: "hello@tripora.example",
-  legalEntity: "Tripora",
+  contactEmail: "hello@bookmyflight.lol",
+  legalEntity: "bookmyflight.lol",
   founded: 2026,
 } as const;
 

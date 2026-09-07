@@ -21,7 +21,9 @@ export function Logo({ className }: { className?: string }) {
           <path d="M16.8 7.2 13.9 13.9 7.2 16.8 10.1 10.1Z" fill="currentColor" />
         </svg>
       </span>
-      <span className="text-lg font-semibold tracking-tight text-ink">{siteConfig.name}</span>
+      <span className="text-base font-semibold tracking-tight text-ink sm:text-lg">
+        {siteConfig.name}
+      </span>
     </Link>
   );
 }
