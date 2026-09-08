@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Ticket } from "lucide-react";
 
 import { MobileFilters, SortDropdown } from "@/components/common/filter-shell";
 import { FlightCardSkeleton, SearchProgress } from "@/components/common/loading-skeleton";
@@ -97,6 +97,10 @@ export function FlightResults({ state }: { state: FlightSearchState }) {
 
       {results.length > 0 && data.dateFlexibility !== "exact" ? (
         <NearbyDatesNotice flexibility={data.dateFlexibility} state={state} className="mb-5" />
+      ) : null}
+
+      {results.length > 0 && results.every((result) => result.pairedFare) ? (
+        <PairedFaresNotice className="mb-5" />
       ) : null}
 
       {state.cabin !== "economy" ? (
@@ -222,6 +226,27 @@ function NearbyDatesNotice({
             closest dates we could price — check each result&apos;s dates before you book.
           </>
         )}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Shown when the route is only priced one way at a time. Each result is two
+ * fares and two bookings, and the page has to say that before the price is
+ * read as a single round-trip fare.
+ */
+function PairedFaresNotice({ className }: { className?: string }) {
+  return (
+    <div
+      className={`flex items-start gap-2.5 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted ${className ?? ""}`}
+      role="status"
+    >
+      <Ticket className="mt-0.5 size-4 shrink-0 text-ink-subtle" aria-hidden="true" />
+      <p>
+        <span className="font-medium text-ink">This route isn&apos;t priced as a return trip.</span>{" "}
+        Each result pairs two one-way fares, so the total is the two prices added together and each
+        direction is booked separately.
       </p>
     </div>
   );

@@ -33,6 +33,16 @@ export type FlightLeg = {
 };
 
 /**
+ * A trip the provider could only price as two separate one-way fares. Each leg
+ * keeps its own carrier, price and booking link, because the traveller books
+ * them as two bookings — nothing here is a single round-trip fare.
+ */
+export type PairedFare = {
+  outbound: { airline: Airline; price: number; bookingUrl: string };
+  inbound: { airline: Airline; price: number; bookingUrl: string };
+};
+
+/**
  * Provider-agnostic flight offer. Provider payloads are normalized into this
  * shape at the adapter boundary so no provider field names leak into the UI.
  */
@@ -56,6 +66,11 @@ export type FlightResult = {
   baggageIncluded?: boolean;
   /** Relative or absolute deal URL; always routed through /go for click tracking. */
   bookingUrl: string;
+  /**
+   * Set when this trip is two one-way fares rather than one round-trip fare, so
+   * `price` is their sum and each leg is booked separately. The UI must say so.
+   */
+  pairedFare?: PairedFare;
   /** Set when the result came from the mock provider so the UI can label it. */
   isMock?: boolean;
 };

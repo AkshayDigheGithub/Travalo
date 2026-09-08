@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PriceDisplay } from "@/components/common/price-display";
 import { cityNameForCode } from "@/config/airports";
+import { formatMoney } from "@/lib/currency";
 import { CABIN_LABELS } from "@/lib/validation/flights";
 import { dayOffset, formatDuration, formatShortDate, formatTimeOfDay } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
-import type { FlightLeg, FlightResult } from "@/types/flight";
+import type { FlightLeg, FlightResult, PairedFare } from "@/types/flight";
 import { stopsLabel } from "./filtering";
 
 export function FlightCard({
@@ -35,7 +36,7 @@ export function FlightCard({
           <div className="flex items-center gap-3">
             <AirlineLogo airline={result.airline} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-ink">{result.airline.name}</p>
+              <p className="truncate text-sm font-medium text-ink">{airlineLabel(result)}</p>
               <p className="truncate text-xs text-ink-subtle">
                 {result.flightNumber ? `${result.flightNumber} · ` : ""}
                 {CABIN_LABELS[result.cabin]}
@@ -54,6 +55,7 @@ export function FlightCard({
               </Badge>
             ) : null}
             {result.stops === 0 ? <Badge variant="brand">Non-stop</Badge> : null}
+            {result.pairedFare ? <Badge>Two one-way fares</Badge> : null}
             {result.isMock ? <Badge variant="accent">Sample data</Badge> : null}
           </div>
         </div>
@@ -64,23 +66,73 @@ export function FlightCard({
             currency={result.currency}
             source={result.priceSource}
             size="lg"
-            caption={travellers > 1 ? "per traveller" : undefined}
+            caption={
+              result.pairedFare ? "two one-way fares" : travellers > 1 ? "per traveller" : undefined
+            }
           />
-          <Button asChild className="shrink-0">
-            {/* rel="sponsored nofollow" marks the affiliate link; /go records the
-                click and only then redirects to the validated partner URL. */}
-            <a
-              href={result.bookingUrl}
-              target="_blank"
-              rel="sponsored nofollow noopener noreferrer"
-            >
-              View Deal
-              <ExternalLink className="size-4" aria-hidden="true" />
-            </a>
-          </Button>
+          {result.pairedFare ? (
+            <PairedDealButtons paired={result.pairedFare} currency={result.currency} />
+          ) : (
+            <Button asChild className="shrink-0">
+              {/* rel="sponsored nofollow" marks the affiliate link; /go records the
+                  click and only then redirects to the validated partner URL. */}
+              <a
+                href={result.bookingUrl}
+                target="_blank"
+                rel="sponsored nofollow noopener noreferrer"
+              >
+                View Deal
+                <ExternalLink className="size-4" aria-hidden="true" />
+              </a>
+            </Button>
+          )}
         </div>
       </div>
     </article>
+  );
+}
+
+/** Both carriers are named when the two halves of a paired trip differ. */
+function airlineLabel(result: FlightResult): string {
+  const paired = result.pairedFare;
+  if (!paired || paired.outbound.airline.code === paired.inbound.airline.code) {
+    return result.airline.name;
+  }
+  return `${paired.outbound.airline.name} · ${paired.inbound.airline.name}`;
+}
+
+/**
+ * A paired trip is two bookings, so it gets two links and two prices. One
+ * "View Deal" button would imply the whole trip is bookable in one go.
+ */
+function PairedDealButtons({
+  paired,
+  currency,
+}: {
+  paired: PairedFare;
+  currency: FlightResult["currency"];
+}) {
+  return (
+    <div className="flex shrink-0 flex-col gap-2">
+      {(["outbound", "inbound"] as const).map((direction) => (
+        <Button
+          key={direction}
+          asChild
+          size="sm"
+          variant={direction === "outbound" ? "primary" : "secondary"}
+        >
+          <a
+            href={paired[direction].bookingUrl}
+            target="_blank"
+            rel="sponsored nofollow noopener noreferrer"
+          >
+            {direction === "outbound" ? "Outbound" : "Return"} ·{" "}
+            {formatMoney(paired[direction].price, currency)}
+            <ExternalLink className="size-4" aria-hidden="true" />
+          </a>
+        </Button>
+      ))}
+    </div>
   );
 }
 
