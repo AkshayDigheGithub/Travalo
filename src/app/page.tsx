@@ -5,22 +5,11 @@ import { Section } from "@/components/common/section";
 import { TravelImage } from "@/components/common/travel-image";
 import { DestinationCard } from "@/features/destinations/destination-card";
 import { HeroSearch } from "@/features/search/hero-search";
-import {
-  FEATURED_DESTINATIONS,
-  HOTEL_DESTINATIONS,
-  POPULAR_ROUTES,
-  getDestination,
-} from "@/config/destinations";
+import { FEATURED_DESTINATIONS, HOTEL_DESTINATIONS, getDestination } from "@/config/destinations";
+import { FEATURED_ROUTES, routeHref, routeSlug } from "@/config/routes";
 import { siteConfig } from "@/config/site";
-import { addDays, formatShortDate, todayIso } from "@/lib/utils/date";
-import {
-  defaultFlightState,
-  defaultHotelState,
-  flightResultsHref,
-  hotelResultsHref,
-} from "@/lib/utils/search-params";
+import { defaultFlightState, defaultHotelState, hotelResultsHref } from "@/lib/utils/search-params";
 
-// Prefilled example dates are baked into the links, so refresh them hourly.
 export const revalidate = 3600;
 
 const BENEFITS = [
@@ -42,8 +31,6 @@ const BENEFITS = [
 ];
 
 export default function HomePage() {
-  const departure = addDays(todayIso(), 21);
-  const returnDate = addDays(departure, 7);
   const flightState = defaultFlightState();
   const hotelState = defaultHotelState();
 
@@ -94,20 +81,15 @@ export default function HomePage() {
 
       <Section
         title="Popular flight routes"
-        description={`Example searches for ${formatShortDate(departure)} – ${formatShortDate(returnDate)}. Change the dates on the results page.`}
+        description="Journey times, the airlines that fly each route and when fares are usually cheapest — then search your own dates."
+        action={{ href: "/flights", label: "All routes" }}
         className="pt-0"
       >
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {POPULAR_ROUTES.map((route) => (
-            <li key={`${route.from}-${route.to}`}>
+          {FEATURED_ROUTES.map((route) => (
+            <li key={routeSlug(route)}>
               <Link
-                href={flightResultsHref({
-                  ...flightState,
-                  from: route.from,
-                  to: route.to,
-                  departure,
-                  return: returnDate,
-                })}
+                href={routeHref(route)}
                 className="group flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-card"
               >
                 <span className="min-w-0">
@@ -200,25 +182,6 @@ export default function HomePage() {
           </p>
         </div>
       </section>
-
-      <script
-        type="application/ld+json"
-        // Structured data for the site itself; search actions point at real pages.
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "WebSite",
-            name: siteConfig.name,
-            url: siteConfig.url,
-            description: siteConfig.description,
-            potentialAction: {
-              "@type": "SearchAction",
-              target: `${siteConfig.url}/hotels/results?destination={search_term_string}`,
-              "query-input": "required name=search_term_string",
-            },
-          }),
-        }}
-      />
     </>
   );
 }

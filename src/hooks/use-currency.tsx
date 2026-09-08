@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   CURRENCY_COOKIE,
@@ -48,7 +48,6 @@ export function CurrencyProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   const currency = React.useSyncExternalStore(subscribe, readCurrencyCookie, () => initialCurrency);
 
@@ -59,13 +58,20 @@ export function CurrencyProvider({
 
       // Results pages carry the currency in the URL so a shared link reproduces
       // exactly what the sender saw; keep the two in step.
-      if (searchParams.has("currency")) {
-        const params = new URLSearchParams(searchParams.toString());
+      //
+      // The query comes from the live URL rather than `useSearchParams()` on
+      // purpose. That hook opts its whole Suspense subtree out of static
+      // rendering, and since this provider wraps the entire app, using it here
+      // left every page's server-rendered HTML empty — a crawler that does not
+      // execute JavaScript saw nothing at all. This callback only ever runs from
+      // a click in the browser, where `location` is exact and always available.
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("currency")) {
         params.set("currency", next);
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
       }
     },
-    [pathname, router, searchParams],
+    [pathname, router],
   );
 
   const value = React.useMemo(() => ({ currency, setCurrency }), [currency, setCurrency]);

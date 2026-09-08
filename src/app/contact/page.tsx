@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 
 import { siteConfig } from "@/config/site";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/contact",
   title: "Contact",
   description: `How to reach ${siteConfig.name}.`,
-  alternates: { canonical: "/contact" },
-};
+});
 
 export default function ContactPage() {
   return (

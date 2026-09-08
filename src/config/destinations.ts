@@ -355,6 +355,14 @@ export const DESTINATIONS: Destination[] = [
   },
 ];
 
+/**
+ * Last editorial revision of the guides. Drives `lastmod` in the sitemap, which
+ * is only useful to a crawler if it means "the content changed" — using the
+ * build date instead tells every page it changed on every deploy, and search
+ * engines learn to ignore a signal that is always fresh.
+ */
+export const DESTINATIONS_UPDATED_AT = "2026-09-08";
+
 const BY_SLUG = new Map(DESTINATIONS.map((destination) => [destination.slug, destination]));
 
 export function getDestination(slug: string): Destination | undefined {

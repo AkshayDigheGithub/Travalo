@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { siteConfig } from "@/config/site";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/about",
   title: "About",
   description: `What ${siteConfig.name} is, how it makes money, and what it doesn't do.`,
-  alternates: { canonical: "/about" },
-};
+});
 
 export default function AboutPage() {
   return (

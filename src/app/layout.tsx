@@ -6,7 +6,10 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { Providers } from "@/components/layout/providers";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { JsonLd } from "@/components/common/json-ld";
 import { siteConfig } from "@/config/site";
+import { languageAlternates } from "@/lib/seo/metadata";
+import { organizationSchema, websiteSchema } from "@/lib/seo/schema";
 
 import "./globals.css";
 
@@ -31,7 +34,7 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
-  alternates: { canonical: "/" },
+  alternates: { canonical: "/", languages: languageAlternates("/") },
   openGraph: {
     type: "website",
     siteName: siteConfig.name,
@@ -45,7 +48,20 @@ export const metadata: Metadata = {
     title: `${siteConfig.name} — ${siteConfig.tagline}`,
     description: siteConfig.description,
   },
-  robots: { index: true, follow: true },
+  // `max-image-preview:large` is what makes a page eligible for a large image
+  // thumbnail in Google results, and `max-snippet:-1` lifts the default snippet
+  // length cap. Both are opt-in and both raise click-through.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   formatDetection: { telephone: false },
 };
 
@@ -81,6 +97,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             from Vercel instead, which is why the CSP allows that one host
             there and not in production. */}
         <Analytics />
+        {/* Brand-level structured data, emitted once for the whole site. Pages
+            add their own entities (breadcrumbs, FAQs) and reference these by
+            `@id` rather than repeating them. */}
+        <JsonLd schema={[organizationSchema(), websiteSchema()]} />
       </body>
     </html>
   );

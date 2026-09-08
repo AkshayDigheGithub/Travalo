@@ -12,15 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { TravelImage } from "@/components/common/travel-image";
 import { DestinationCard } from "@/features/destinations/destination-card";
-import { DESTINATIONS, POPULAR_ROUTES, getDestination } from "@/config/destinations";
+import { JsonLd } from "@/components/common/json-ld";
+import { DESTINATIONS, getDestination } from "@/config/destinations";
+import { routeHref, routeSlug, routesToCity } from "@/config/routes";
 import { siteConfig } from "@/config/site";
-import { addDays, todayIso } from "@/lib/utils/date";
-import {
-  defaultFlightState,
-  defaultHotelState,
-  flightResultsHref,
-  hotelResultsHref,
-} from "@/lib/utils/search-params";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbSchema, faqSchema } from "@/lib/seo/schema";
+import { defaultHotelState, hotelResultsHref } from "@/lib/utils/search-params";
 
 // Editorial content changes rarely; the embedded example dates refresh daily.
 export const revalidate = 86400;
@@ -41,19 +39,14 @@ export async function generateMetadata({
   const title = `${destination.name} travel guide`;
   const description = `${destination.tagline}. When to go, where to stay and how to find flights to ${destination.name}, ${destination.country}.`;
 
-  return {
+  return pageMetadata({
+    path: `/destinations/${destination.slug}`,
     title,
     description,
-    alternates: { canonical: `/destinations/${destination.slug}` },
-    openGraph: {
-      type: "article",
-      title: `${title} · ${siteConfig.name}`,
-      description,
-      url: `${siteConfig.url}/destinations/${destination.slug}`,
-      images: [{ url: destination.heroImage, alt: destination.name }],
-    },
-    twitter: { card: "summary_large_image", title, description },
-  };
+    type: "article",
+    image: destination.heroImage,
+    imageAlt: `${destination.name}, ${destination.country}`,
+  });
 }
 
 export default async function DestinationPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -61,13 +54,9 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
   const destination = getDestination(slug);
   if (!destination) notFound();
 
-  const departure = addDays(todayIso(), 21);
-  const returnDate = addDays(departure, 7);
-  const flightState = defaultFlightState();
   const hotelState = defaultHotelState();
 
-  const routesHere = POPULAR_ROUTES.filter((route) => route.to === destination.airportCode);
-  const relatedRoutes = routesHere.length > 0 ? routesHere : POPULAR_ROUTES.slice(0, 3);
+  const arrivingRoutes = routesToCity(destination.airportCode);
   const related = DESTINATIONS.filter((entry) => entry.slug !== destination.slug).slice(0, 4);
 
   const hotelHref = hotelResultsHref({ ...hotelState, destination: destination.name });
@@ -104,15 +93,9 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
 
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link
-                href={flightResultsHref({
-                  ...flightState,
-                  from: "BOM",
-                  to: destination.airportCode,
-                  departure,
-                  return: returnDate,
-                })}
-              >
+              {/* No origin is assumed: visitors arrive here from everywhere, so
+                  the CTA opens the search form rather than a prefilled route. */}
+              <Link href="/flights">
                 <Plane className="size-4" aria-hidden="true" />
                 Find flights
               </Link>
@@ -144,35 +127,39 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
             <p className="mt-3 leading-relaxed text-ink-muted">{destination.bestTimeToVisit}</p>
           </section>
 
-          <section>
-            <h2 className="text-2xl font-semibold tracking-tight text-ink">
-              Popular flights to {destination.name}
-            </h2>
-            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-              {relatedRoutes.map((route) => (
-                <li key={`${route.from}-${route.to}`}>
-                  <Link
-                    href={flightResultsHref({
-                      ...flightState,
-                      from: route.from,
-                      to: destination.airportCode,
-                      departure,
-                      return: returnDate,
-                    })}
-                    className="group flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3.5 transition-all hover:-translate-y-0.5 hover:shadow-card"
-                  >
-                    <span className="text-sm font-medium text-ink">
-                      {route.fromCity} to {destination.name}
-                    </span>
-                    <ArrowRight
-                      className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5"
-                      aria-hidden="true"
-                    />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {arrivingRoutes.length > 0 ? (
+            <section>
+              <h2 className="text-2xl font-semibold tracking-tight text-ink">
+                Popular flights to {destination.name}
+              </h2>
+              <p className="mt-2 text-sm text-ink-muted">
+                Journey times, airlines and when fares are cheapest on each route.
+              </p>
+              <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                {arrivingRoutes.map((route) => (
+                  <li key={routeSlug(route)}>
+                    <Link
+                      href={routeHref(route)}
+                      className="group flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3.5 transition-all hover:-translate-y-0.5 hover:shadow-card"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-ink">
+                          {route.fromCity} to {destination.name}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-ink-subtle">
+                          {route.from} → {route.to}
+                        </span>
+                      </span>
+                      <ArrowRight
+                        className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           <section>
             <h2 className="text-2xl font-semibold tracking-tight text-ink">
@@ -273,48 +260,27 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
         </div>
       </section>
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
-            {
-              "@context": "https://schema.org",
-              "@type": "TouristDestination",
-              name: destination.name,
-              description: destination.intro,
-              url: `${siteConfig.url}/destinations/${destination.slug}`,
-              image: destination.heroImage,
-              addressCountry: destination.country,
+      <JsonLd
+        schema={[
+          {
+            "@type": "TouristDestination",
+            name: destination.name,
+            description: destination.intro,
+            url: `${siteConfig.url}/destinations/${destination.slug}`,
+            image: destination.heroImage,
+            address: {
+              "@type": "PostalAddress",
+              addressLocality: destination.name,
+              addressCountry: destination.countryCode,
             },
-            {
-              "@context": "https://schema.org",
-              "@type": "FAQPage",
-              mainEntity: destination.faqs.map((faq) => ({
-                "@type": "Question",
-                name: faq.question,
-                acceptedAnswer: { "@type": "Answer", text: faq.answer },
-              })),
-            },
-            {
-              "@context": "https://schema.org",
-              "@type": "BreadcrumbList",
-              itemListElement: [
-                {
-                  "@type": "ListItem",
-                  position: 1,
-                  name: "Destinations",
-                  item: `${siteConfig.url}/destinations`,
-                },
-                {
-                  "@type": "ListItem",
-                  position: 2,
-                  name: destination.name,
-                  item: `${siteConfig.url}/destinations/${destination.slug}`,
-                },
-              ],
-            },
+          },
+          faqSchema(destination.faqs),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Destinations", path: "/destinations" },
+            { name: destination.name, path: `/destinations/${destination.slug}` },
           ]),
-        }}
+        ]}
       />
     </article>
   );
