@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { Providers } from "@/components/layout/providers";
@@ -75,6 +76,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           <BottomNav />
         </Providers>
+        {/* Page views and web vitals, served from this origin under
+            /_vercel/insights once deployed. Development loads a debug script
+            from Vercel instead, which is why the CSP allows that one host
+            there and not in production. */}
+        <Analytics />
       </body>
     </html>
   );
