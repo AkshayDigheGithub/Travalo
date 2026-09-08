@@ -3,9 +3,14 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { DEFAULT_CURRENCY, isCurrencyCode, type CurrencyCode } from "@/config/currencies";
+import {
+  CURRENCY_COOKIE,
+  DEFAULT_CURRENCY,
+  isCurrencyCode,
+  type CurrencyCode,
+} from "@/config/currencies";
 
-export const CURRENCY_COOKIE = "bookmyflight.currency";
+export { CURRENCY_COOKIE };
 
 type CurrencyContextValue = {
   currency: CurrencyCode;

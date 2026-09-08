@@ -360,14 +360,17 @@ async function normalizeFlight(args: NormalizeArgs): Promise<FlightResult | null
 
   const subId = buildSubId(["flight", input.from, input.to, input.departure.replace(/-/g, "")]);
 
+  // The link carries the currency the price is quoted in here, so the partner
+  // page opens showing the same money the traveller just read.
   const partnerUrl = record.link
-    ? buildFlightDeepLink(record.link, subId)
+    ? buildFlightDeepLink(record.link, subId, price.currency)
     : buildFlightSearchLink({
         from: input.from,
         to: input.to,
         departure: input.departure,
         return: input.return,
         passengers,
+        currency: price.currency,
         subId,
       });
 
