@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { PriceDisplay } from "@/components/common/price-display";
 import { cityNameForCode } from "@/config/airports";
 import { CABIN_LABELS } from "@/lib/validation/flights";
-import { dayOffset, formatDuration, formatTimeOfDay } from "@/lib/utils/date";
+import { dayOffset, formatDuration, formatShortDate, formatTimeOfDay } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import type { FlightLeg, FlightResult } from "@/types/flight";
 import { stopsLabel } from "./filtering";
@@ -114,11 +114,13 @@ function Leg({ leg, isReturn = false }: { leg: FlightLeg; isReturn?: boolean }) 
 
   return (
     <div className="flex items-center gap-3 sm:gap-5">
-      <span
-        className="w-14 shrink-0 text-[11px] font-medium tracking-wide text-ink-subtle uppercase"
-        aria-hidden="true"
-      >
-        {isReturn ? "Return" : "Outbound"}
+      {/* The date is part of the offer, not decoration: a fare found on a
+          nearby date must never read as one on the searched date. */}
+      <span className="w-14 shrink-0 text-[11px] font-medium tracking-wide text-ink-subtle">
+        <span className="uppercase">{isReturn ? "Return" : "Outbound"}</span>
+        <span className="block text-ink-muted tabular-nums">
+          {formatShortDate(leg.departureAt.slice(0, 10))}
+        </span>
       </span>
 
       <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">

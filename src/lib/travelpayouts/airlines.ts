@@ -18,6 +18,11 @@ import type { Airline } from "@/types/flight";
 
 const CACHE_KEY = "tp:airlines:v1";
 const CACHE_TTL_SECONDS = 60 * 60 * 24;
+/**
+ * A directory outage is remembered too, briefly: without this every search pays
+ * for the same failing request before falling back to the bundled seed.
+ */
+const FAILURE_TTL_SECONDS = 60 * 15;
 
 let inflight: Promise<Record<string, string>> | null = null;
 
@@ -45,6 +50,7 @@ async function loadDirectory(): Promise<Record<string, string>> {
       return directory;
     } catch (error) {
       logger.warn("airline_directory_unavailable", { error: String(error) });
+      await cacheSet(CACHE_KEY, {}, FAILURE_TTL_SECONDS);
       return {};
     } finally {
       inflight = null;

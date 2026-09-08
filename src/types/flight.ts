@@ -1,6 +1,19 @@
 import type { CurrencyCode } from "@/config/currencies";
 import type { CabinClass } from "./search";
 
+/**
+ * How closely the fares in a response match the dates that were searched for.
+ * Anything other than "exact" means the provider had nothing priced for those
+ * dates and the search was retried with them relaxed.
+ */
+export type DateFlexibility =
+  /** Every fare departs, and returns, on the requested dates. */
+  | "exact"
+  /** The requested outbound day, but the return falls on a nearby date. */
+  | "flexible-return"
+  /** Both dates may fall within a few days of the ones requested. */
+  | "flexible-dates";
+
 export type Airline = {
   code: string;
   name: string;
@@ -56,6 +69,8 @@ export type FlightSearchResponse = {
   priceRange: { min: number; max: number } | null;
   durationRange: { min: number; max: number } | null;
   isMock: boolean;
+  /** Whether these fares are for the requested dates or for nearby ones. */
+  dateFlexibility: DateFlexibility;
   /** Unix ms; results from cached fare data are not live availability. */
   retrievedAt: number;
 };
