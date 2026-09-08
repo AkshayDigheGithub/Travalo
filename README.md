@@ -42,22 +42,27 @@ paths production uses.
 Every variable is documented inline in [`.env.example`](./.env.example). The
 short version:
 
-| Variable                       | Required | Purpose                                                            |
-| ------------------------------ | -------- | ------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SITE_URL`         | Rec.     | Canonical URLs, Open Graph tags, `robots.txt`, `sitemap.xml`       |
-| `NEXT_PUBLIC_DEFAULT_CURRENCY` | No       | Currency shown before the visitor picks one (default `INR`)        |
-| `TRAVELPAYOUTS_API_TOKEN`      | Prod     | Travelpayouts API token — **server only**                          |
-| `TRAVELPAYOUTS_MARKER`         | Prod     | Affiliate marker used to attribute clicks — **server only**        |
-| `TRAVELPAYOUTS_MARKET`         | No       | Market code passed to the flight price endpoint                    |
-| `TRAVELPAYOUTS_MOCK`           | No       | `true` serves sample data; defaults to `true` when no token is set |
-| `TRAVELPAYOUTS_MOCK_SCENARIO`  | No       | `normal` \| `empty` \| `error` \| `slow` — exercises the UI states |
-| `PROVIDER_TIMEOUT_MS`          | No       | Provider request timeout (default `10000`)                         |
-| `AFFILIATE_LINK_SECRET`        | Prod     | HMAC secret for signing outbound links                             |
-| `DATABASE_URL`                 | No       | PostgreSQL/Supabase — destinations, analytics, click tracking      |
-| `ANALYTICS_ENABLED`            | No       | Set `false` to disable analytics writes                            |
-| `UPSTASH_REDIS_REST_URL`       | No       | Upstash Redis REST URL — caching and rate limiting                 |
-| `UPSTASH_REDIS_REST_TOKEN`     | No       | Upstash Redis REST token                                           |
-| `EXCHANGE_RATES_API_URL`       | No       | Real exchange-rate source; without it we never convert a price     |
+| Variable                            | Required | Purpose                                                            |
+| ----------------------------------- | -------- | ------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SITE_URL`              | Rec.     | Canonical URLs, Open Graph tags, `robots.txt`, `sitemap.xml`       |
+| `NEXT_PUBLIC_DEFAULT_CURRENCY`      | No       | Currency shown before the visitor picks one (default `INR`)        |
+| `TRAVELPAYOUTS_API_TOKEN`           | Prod     | Travelpayouts API token — **server only**                          |
+| `TRAVELPAYOUTS_MARKER`              | Prod     | Affiliate marker used to attribute clicks — **server only**        |
+| `TRAVELPAYOUTS_TRS`                 | Prod     | Project id; required for clicks to appear in the TP dashboard      |
+| `TRAVELPAYOUTS_FLIGHTS_P`           | No       | Flights program id (defaults to Aviasales `4114`)                  |
+| `TRAVELPAYOUTS_FLIGHTS_CAMPAIGN_ID` | No       | Flights campaign id (defaults to Aviasales `100`)                  |
+| `TRAVELPAYOUTS_HOTELS_P`            | No       | Hotels program id; no default (see note below)                     |
+| `TRAVELPAYOUTS_HOTELS_CAMPAIGN_ID`  | No       | Hotels campaign id; no default (see note below)                    |
+| `TRAVELPAYOUTS_MARKET`              | No       | Market code passed to the flight price endpoint                    |
+| `TRAVELPAYOUTS_MOCK`                | No       | `true` serves sample data; defaults to `true` when no token is set |
+| `TRAVELPAYOUTS_MOCK_SCENARIO`       | No       | `normal` \| `empty` \| `error` \| `slow` — exercises the UI states |
+| `PROVIDER_TIMEOUT_MS`               | No       | Provider request timeout (default `10000`)                         |
+| `AFFILIATE_LINK_SECRET`             | Prod     | HMAC secret for signing outbound links                             |
+| `DATABASE_URL`                      | No       | PostgreSQL/Supabase — destinations, analytics, click tracking      |
+| `ANALYTICS_ENABLED`                 | No       | Set `false` to disable analytics writes                            |
+| `UPSTASH_REDIS_REST_URL`            | No       | Upstash Redis REST URL — caching and rate limiting                 |
+| `UPSTASH_REDIS_REST_TOKEN`          | No       | Upstash Redis REST token                                           |
+| `EXCHANGE_RATES_API_URL`            | No       | Real exchange-rate source; without it we never convert a price     |
 
 `NEXT_PUBLIC_SITE_URL` is recommended rather than required: when it isn't set,
 the site origin falls back to the URL Vercel injects
@@ -103,7 +108,11 @@ Production sets `TRAVELPAYOUTS_MOCK=false` and supplies real credentials.
 1. Create a Travelpayouts account and join the flight and hotel programs.
 2. Copy your **API token** into `TRAVELPAYOUTS_API_TOKEN`.
 3. Copy your **marker** into `TRAVELPAYOUTS_MARKER`.
-4. Set `TRAVELPAYOUTS_MOCK=false`.
+4. Generate any affiliate link in the dashboard and copy `trs`, `p` and
+   `campaign_id` out of it into `TRAVELPAYOUTS_TRS`, `TRAVELPAYOUTS_FLIGHTS_P`
+   and `TRAVELPAYOUTS_FLIGHTS_CAMPAIGN_ID`. **Skip this and the dashboard shows
+   zero clicks** — see [Affiliate links and click tracking](#affiliate-links-and-click-tracking).
+5. Set `TRAVELPAYOUTS_MOCK=false`.
 
 The integration lives in `src/lib/travelpayouts/` and uses these endpoints:
 
@@ -145,6 +154,41 @@ A forged, tampered or expired link never redirects anywhere — it lands back on
 `/deals`. That is what keeps the affiliate exit from becoming an open redirect.
 Sub-ids follow the program's `marker=<marker>.<sub_id>` convention, e.g.
 `flight_BOM_DXB_20261018`.
+
+#### Why a correct marker is not enough
+
+Attribution and reporting are two separate mechanisms, and it is easy to get the
+first one right while the second silently does nothing:
+
+- The **marker** on the destination URL is what credits a _booking_ to us.
+- The **Clicks** column in the Travelpayouts dashboard is only ever filled by
+  their own redirector at `tp.media/r`. A link that goes straight to
+  `aviasales.com` with a perfectly good marker can still earn commission, but it
+  produces no click row, because nothing told Travelpayouts the click happened.
+
+So the final hop of every outbound link is:
+
+```
+https://tp.media/r?marker=<marker>.<sub_id>&trs=<TRS>&p=<P>&campaign_id=<ID>&u=<partner URL>
+```
+
+`trs`, `p` and `campaign_id` are read from the environment. If they are not
+configured, links fall back to the direct partner URL — travellers still get
+through and bookings are still attributed, only the click statistic is lost —
+and the server logs `travelpayouts_click_tracking_disabled` once per program
+naming the variable to set.
+
+Outbound anchors send `referrerPolicy="origin"` rather than `noreferrer`, so
+Travelpayouts can see the click came from this site while the traveller's search
+terms stay out of the referrer.
+
+#### Note on the hotel program
+
+Travelpayouts closed the **Hotellook** program on 20 October 2025. The hotel
+integration here still targets `search.hotellook.com` and
+`engine.hotellook.com`, so hotel clicks cannot be recorded and hotel bookings
+cannot be earned on until it is pointed at a live accommodation program. That is
+why the hotel program ids ship with no defaults.
 
 ---
 

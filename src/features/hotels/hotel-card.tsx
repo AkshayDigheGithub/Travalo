@@ -115,7 +115,8 @@ export function HotelCard({
                 <a
                   href={hotel.bookingUrl}
                   target="_blank"
-                  rel="sponsored nofollow noopener noreferrer"
+                  rel="sponsored nofollow noopener"
+                  referrerPolicy="origin"
                 >
                   View Deal
                   <ExternalLink className="size-4" aria-hidden="true" />

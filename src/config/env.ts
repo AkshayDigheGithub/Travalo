@@ -31,6 +31,35 @@ export const serverEnv = {
     return optional("TRAVELPAYOUTS_HOST");
   },
   /**
+   * Project id ("trs") subscribed to the brand program. Travelpayouts only
+   * registers a click when the visitor passes through their redirector, and the
+   * redirector requires this alongside the marker — without it we can still send
+   * the traveller to the partner, but the click never reaches the dashboard.
+   */
+  get travelpayoutsTrs() {
+    return optional("TRAVELPAYOUTS_TRS");
+  },
+  /** Program ids taken from a link generated in the Travelpayouts dashboard. */
+  get travelpayoutsFlightsProgram() {
+    return {
+      p: optional("TRAVELPAYOUTS_FLIGHTS_P") ?? "4114",
+      campaignId: optional("TRAVELPAYOUTS_FLIGHTS_CAMPAIGN_ID") ?? "100",
+    };
+  },
+  /**
+   * No default: the Hotellook program closed in October 2025, so the ids depend
+   * on whichever accommodation program the account has joined since.
+   */
+  get travelpayoutsHotelsProgram() {
+    const p = optional("TRAVELPAYOUTS_HOTELS_P");
+    const campaignId = optional("TRAVELPAYOUTS_HOTELS_CAMPAIGN_ID");
+    return p && campaignId ? { p, campaignId } : undefined;
+  },
+  /** Escape hatch: send travellers straight to the partner, unwrapped. */
+  get travelpayoutsClickTracking() {
+    return boolean("TRAVELPAYOUTS_CLICK_TRACKING", true);
+  },
+  /**
    * Mock mode is the default: the app must run end to end before credentials
    * exist. Production deployments set TRAVELPAYOUTS_MOCK=false explicitly.
    */
