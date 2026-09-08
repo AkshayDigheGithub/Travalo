@@ -166,10 +166,17 @@ async function normalizeRecords(args: {
   return results;
 }
 
-export async function searchFlights(
+type AttemptResult = { results: FlightResult[]; flexibility: DateFlexibility };
+
+/**
+ * Runs the date attempts for one search, narrowest first, and returns the first
+ * that produced fares. Null means the provider has nothing for this search at
+ * any of the dates we are willing to accept.
+ */
+async function runAttempts(
   input: FlightSearchInput,
   ctx: SearchContext,
-): Promise<FlightSearchResponse> {
+): Promise<AttemptResult | null> {
   const attempts = dateAttempts(input);
 
   for (const [index, attempt] of attempts.entries()) {
@@ -202,7 +209,110 @@ export async function searchFlights(
     });
     if (results.length === 0) continue;
 
-    return buildResponse(results, input.currency, ctx.searchId, false, attempt.flexibility);
+    return { results, flexibility: attempt.flexibility };
+  }
+
+  return null;
+}
+
+/** Cheapest fares per direction that a paired trip is built from. */
+const PAIR_LEG_LIMIT = 8;
+
+/**
+ * Some routes are priced one way at a time and not as round trips at all — the
+ * provider has fares in both directions and nothing that joins them. Rather
+ * than answer such a search with an empty page, each direction is priced on its
+ * own and the two are offered together, as the two bookings they really are.
+ */
+async function searchPairedOneWay(
+  input: FlightSearchInput,
+  ctx: SearchContext,
+): Promise<AttemptResult | null> {
+  if (!input.return) return null;
+
+  const [outbound, inbound] = await Promise.all([
+    runAttempts({ ...input, tripType: "one-way", return: undefined }, ctx),
+    runAttempts(
+      {
+        ...input,
+        tripType: "one-way",
+        from: input.to,
+        to: input.from,
+        departure: input.return,
+        return: undefined,
+      },
+      ctx,
+    ),
+  ]);
+
+  if (!outbound || !inbound) return null;
+
+  const cheapest = (results: FlightResult[]) =>
+    [...results].sort((a, b) => a.price - b.price).slice(0, PAIR_LEG_LIMIT);
+
+  const results: FlightResult[] = [];
+  for (const out of cheapest(outbound.results)) {
+    for (const back of cheapest(inbound.results)) {
+      results.push(pairFares(out, back, input));
+    }
+  }
+
+  return {
+    results: results.slice(0, RESULT_LIMIT),
+    // The looser of the two legs describes the pair: one leg on a nearby date
+    // makes the whole trip a nearby-date trip.
+    flexibility:
+      outbound.flexibility === "exact" && inbound.flexibility === "exact"
+        ? "exact"
+        : "flexible-dates",
+  };
+}
+
+/** Joins an outbound and an inbound one-way fare into a single offer. */
+function pairFares(out: FlightResult, back: FlightResult, input: FlightSearchInput): FlightResult {
+  return {
+    id: `${out.id}+${back.id}`,
+    airline: out.airline,
+    flightNumber: out.flightNumber,
+    outbound: out.outbound,
+    inbound: back.outbound,
+    totalDurationMinutes: out.totalDurationMinutes + back.totalDurationMinutes,
+    stops: Math.max(out.stops, back.stops),
+    cabin: input.cabin,
+    price: out.price + back.price,
+    currency: out.currency,
+    // A sum is only as firm as its weakest half: one converted leg makes the
+    // whole total an estimate.
+    priceSource:
+      out.priceSource === "converted" || back.priceSource === "converted"
+        ? "converted"
+        : "provider",
+    bookingUrl: out.bookingUrl,
+    pairedFare: {
+      outbound: { airline: out.airline, price: out.price, bookingUrl: out.bookingUrl },
+      inbound: { airline: back.airline, price: back.price, bookingUrl: back.bookingUrl },
+    },
+  };
+}
+
+export async function searchFlights(
+  input: FlightSearchInput,
+  ctx: SearchContext,
+): Promise<FlightSearchResponse> {
+  const direct = await runAttempts(input, ctx);
+  if (direct) {
+    return buildResponse(direct.results, input.currency, ctx.searchId, false, direct.flexibility);
+  }
+
+  // Pairing is a last resort on an otherwise empty page, so it never turns an
+  // empty result into an error.
+  try {
+    const paired = await searchPairedOneWay(input, ctx);
+    if (paired) {
+      return buildResponse(paired.results, input.currency, ctx.searchId, false, paired.flexibility);
+    }
+  } catch (error) {
+    logger.warn("flight_pairing_failed", { error: String(error) });
   }
 
   return buildResponse([], input.currency, ctx.searchId, false, "exact");

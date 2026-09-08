@@ -64,15 +64,50 @@ export type SingleDatePickerProps = BaseProps & {
 
 export function DateRangePicker(props: DateRangePickerProps | SingleDatePickerProps) {
   const [open, setOpen] = React.useState(false);
+  /**
+   * A range being picked, before it is handed to the form.
+   *
+   * The calendar always arrives with a complete range, and a complete range
+   * makes every click an adjustment of the end date — which is why the start
+   * date could not be moved forward. `resetOnSelect` makes the first click
+   * start a new range instead, and holding that range here until it is finished
+   * keeps a form that fills in its own end date (hotels do) from immediately
+   * completing it again and swallowing the next click.
+   */
+  const [draft, setDraft] = React.useState<DateRange | undefined>(undefined);
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const today = todayIso();
 
   const disabled = { before: isoToLocalDate(today) };
   const endMonth = isoToLocalDate(addDays(today, 30 * (props.maxMonths ?? 12)));
 
+  const range: DateRange | undefined =
+    props.mode === "range"
+      ? (draft ?? {
+          from: isoToLocalDate(props.start),
+          to: props.end ? isoToLocalDate(props.end) : undefined,
+        })
+      : undefined;
+
+  // The trigger follows the pick in progress, so choosing a departure shows
+  // straight away that a return is still needed.
+  const displayStart = range?.from ? localDateToIso(range.from) : undefined;
+  const displayEnd = range?.to ? localDateToIso(range.to) : undefined;
+
+  function closePicker(next: boolean) {
+    setOpen(next);
+    if (next) return;
+    // A half-finished pick is still the traveller's choice: keep the new start
+    // and let the form ask for the date that is missing.
+    if (props.mode === "range" && draft?.from && !draft.to) {
+      props.onChange({ start: localDateToIso(draft.from), end: undefined });
+    }
+    setDraft(undefined);
+  }
+
   return (
     <div>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={closePicker}>
         <PopoverTrigger asChild>
           <button
             type="button"
@@ -99,7 +134,7 @@ export function DateRangePicker(props: DateRangePickerProps | SingleDatePickerPr
                     {props.startLabel}
                   </span>
                   <span className="block truncate text-base font-medium text-ink">
-                    {formatLongDate(props.start)}
+                    {formatLongDate(displayStart ?? props.start)}
                   </span>
                 </span>
                 <span className="min-w-0">
@@ -109,10 +144,10 @@ export function DateRangePicker(props: DateRangePickerProps | SingleDatePickerPr
                   <span
                     className={cn(
                       "block truncate text-base font-medium",
-                      props.end ? "text-ink" : "text-ink-subtle",
+                      displayEnd ? "text-ink" : "text-ink-subtle",
                     )}
                   >
-                    {props.end ? formatLongDate(props.end) : "Add date"}
+                    {displayEnd ? formatLongDate(displayEnd) : "Add date"}
                   </span>
                 </span>
               </span>
@@ -142,22 +177,28 @@ export function DateRangePicker(props: DateRangePickerProps | SingleDatePickerPr
             <DayPicker
               mode="range"
               autoFocus
-              selected={{
-                from: isoToLocalDate(props.start),
-                to: props.end ? isoToLocalDate(props.end) : undefined,
-              }}
-              defaultMonth={isoToLocalDate(props.start)}
+              resetOnSelect
+              required
+              selected={range}
+              defaultMonth={range?.from ?? isoToLocalDate(props.start)}
               disabled={disabled}
               endMonth={endMonth}
               numberOfMonths={isDesktop ? 2 : 1}
               classNames={dayPickerClassNames}
-              onSelect={(range: DateRange | undefined) => {
-                if (!range?.from) return;
-                const start = localDateToIso(range.from);
-                const end = range.to ? localDateToIso(range.to) : undefined;
-                props.onChange({ start, end });
+              onSelect={(next: DateRange | undefined) => {
+                if (!next?.from) return;
+                if (!next.to) {
+                  // First click: the new start. The end comes with the next one.
+                  setDraft(next);
+                  return;
+                }
+                props.onChange({
+                  start: localDateToIso(next.from),
+                  end: localDateToIso(next.to),
+                });
+                setDraft(undefined);
                 // Close once the range is complete so the form stays quick to fill.
-                if (end && end !== start) setOpen(false);
+                setOpen(false);
               }}
             />
           )}
