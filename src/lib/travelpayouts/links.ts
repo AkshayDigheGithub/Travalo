@@ -1,17 +1,29 @@
 import "server-only";
 
+import { serverEnv } from "@/config/env";
+import { logger } from "@/lib/logger";
 import { getMarker } from "./client";
 
 /**
  * Partner deep-link construction.
  *
- * Travelpayouts attributes a click through the `marker` parameter. A sub-id is
- * appended to the marker as `marker=<marker>.<sub_id>`, which is the format the
- * program supports for campaign-level reporting.
+ * Two different things have to be true for a link to earn and to be visible:
+ *
+ * - **Attribution** comes from the `marker` parameter. A sub-id is appended as
+ *   `marker=<marker>.<sub_id>`, which is the format the program supports for
+ *   campaign-level reporting.
+ * - **The click statistic** comes from Travelpayouts' own redirector at
+ *   `tp.media/r`. A link that carries a correct marker but goes straight to the
+ *   brand site can still be credited for a booking, yet it never appears in the
+ *   Clicks column of the dashboard, because nothing ever told Travelpayouts the
+ *   click happened. So every partner URL is wrapped before it is handed out.
  */
 
 export const AVIASALES_HOST = "https://www.aviasales.com";
 export const HOTELLOOK_SEARCH_HOST = "https://search.hotellook.com";
+
+/** Travelpayouts' click redirector. Hitting it is what records a click. */
+export const TP_REDIRECTOR = "https://tp.media/r";
 
 /** Hosts we are ever willing to redirect a user to. */
 export const PARTNER_HOST_ALLOWLIST = [
@@ -46,10 +58,77 @@ export function buildSubId(parts: (string | number | undefined)[]): string {
     .slice(0, 60);
 }
 
-function withMarker(url: URL, subId?: string): URL {
+/** `marker`, with the sub-id appended in the form the program reports on. */
+function markerWithSubId(subId?: string): string {
   const marker = getMarker();
-  url.searchParams.set("marker", subId ? `${marker}.${subId}` : marker);
+  return subId ? `${marker}.${subId}` : marker;
+}
+
+function withMarker(url: URL, subId?: string): URL {
+  url.searchParams.set("marker", markerWithSubId(subId));
   return url;
+}
+
+export type PartnerProgram = "flights" | "hotels";
+
+/**
+ * Ids the redirector needs, or undefined when the program is not configured.
+ *
+ * `trs` is account-specific and `p`/`campaign_id` identify the program; all
+ * three are readable from any link the Travelpayouts dashboard generates.
+ */
+function trackingIds(program: PartnerProgram) {
+  if (!serverEnv.travelpayoutsClickTracking) return undefined;
+
+  const trs = serverEnv.travelpayoutsTrs;
+  if (!trs) return undefined;
+
+  const ids =
+    program === "flights"
+      ? serverEnv.travelpayoutsFlightsProgram
+      : serverEnv.travelpayoutsHotelsProgram;
+
+  return ids ? { trs, ...ids } : undefined;
+}
+
+const warnedPrograms = new Set<PartnerProgram>();
+
+/**
+ * Wraps a partner URL in the redirector so the click lands in Travelpayouts.
+ *
+ * When the program is not configured we deliberately return the direct link
+ * rather than emitting a half-built redirector URL: the traveller still reaches
+ * the partner and the marker still attributes a booking. Only the click
+ * statistic is lost, and the warning below says exactly why.
+ */
+export function withClickTracking(
+  partnerUrl: string,
+  program: PartnerProgram,
+  subId?: string,
+): string {
+  const ids = trackingIds(program);
+
+  if (!ids) {
+    if (serverEnv.travelpayoutsClickTracking && !warnedPrograms.has(program)) {
+      warnedPrograms.add(program);
+      logger.warn("travelpayouts_click_tracking_disabled", {
+        program,
+        hint: serverEnv.travelpayoutsTrs
+          ? `Set TRAVELPAYOUTS_${program.toUpperCase()}_P and TRAVELPAYOUTS_${program.toUpperCase()}_CAMPAIGN_ID so clicks are recorded.`
+          : "Set TRAVELPAYOUTS_TRS so clicks are recorded in the Travelpayouts dashboard.",
+      });
+    }
+    return partnerUrl;
+  }
+
+  const url = new URL(TP_REDIRECTOR);
+  url.searchParams.set("marker", markerWithSubId(subId));
+  url.searchParams.set("trs", ids.trs);
+  url.searchParams.set("p", ids.p);
+  url.searchParams.set("campaign_id", ids.campaignId);
+  // Encoded by URLSearchParams, so the destination's own query survives intact.
+  url.searchParams.set("u", partnerUrl);
+  return url.toString();
 }
 
 /**
@@ -77,7 +156,8 @@ export function buildFlightDeepLink(
     : `${AVIASALES_HOST}${providerLink ?? ""}`;
 
   const url = new URL(providerLink ? base : AVIASALES_HOST);
-  return withCurrency(withMarker(url, subId), currency).toString();
+  const partnerUrl = withCurrency(withMarker(url, subId), currency).toString();
+  return withClickTracking(partnerUrl, "flights", subId);
 }
 
 /**
@@ -100,7 +180,8 @@ export function buildFlightSearchLink(input: {
     `${input.return ? segment(input.return) : ""}${Math.min(Math.max(input.passengers, 1), 9)}`;
 
   const url = new URL(`${AVIASALES_HOST}${path}`);
-  return withCurrency(withMarker(url, input.subId), input.currency).toString();
+  const partnerUrl = withCurrency(withMarker(url, input.subId), input.currency).toString();
+  return withClickTracking(partnerUrl, "flights", input.subId);
 }
 
 export function buildHotelDeepLink(input: {
@@ -123,7 +204,8 @@ export function buildHotelDeepLink(input: {
   url.searchParams.set("adults", String(input.adults));
   url.searchParams.set("language", "en");
 
-  return withCurrency(withMarker(url, input.subId), input.currency).toString();
+  const partnerUrl = withCurrency(withMarker(url, input.subId), input.currency).toString();
+  return withClickTracking(partnerUrl, "hotels", input.subId);
 }
 
 /** Airline logo CDN operated by Travelpayouts/Aviasales. */

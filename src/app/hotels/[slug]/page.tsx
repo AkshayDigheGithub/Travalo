@@ -160,7 +160,8 @@ export default async function HotelDetailsPage({ params, searchParams }: PagePro
                         <a
                           href={room.bookingUrl}
                           target="_blank"
-                          rel="sponsored nofollow noopener noreferrer"
+                          rel="sponsored nofollow noopener"
+                          referrerPolicy="origin"
                         >
                           Book with partner
                         </a>
@@ -263,7 +264,8 @@ export default async function HotelDetailsPage({ params, searchParams }: PagePro
               <a
                 href={hotel.bookingUrl}
                 target="_blank"
-                rel="sponsored nofollow noopener noreferrer"
+                rel="sponsored nofollow noopener"
+                referrerPolicy="origin"
               >
                 View Deal
                 <ExternalLink className="size-4" aria-hidden="true" />

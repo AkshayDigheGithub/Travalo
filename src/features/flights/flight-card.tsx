@@ -73,11 +73,15 @@ export function FlightCard({
           ) : (
             <Button asChild className="shrink-0">
               {/* rel="sponsored nofollow" marks the affiliate link; /go records the
-                  click and only then redirects to the validated partner URL. */}
+                  click and only then redirects to the validated partner URL.
+                  The referrer is trimmed to our origin rather than dropped:
+                  Travelpayouts sees the click came from this site, and the
+                  traveller's search terms still stay out of it. */}
               <a
                 href={result.bookingUrl}
                 target="_blank"
-                rel="sponsored nofollow noopener noreferrer"
+                rel="sponsored nofollow noopener"
+                referrerPolicy="origin"
               >
                 View Deal
                 <ExternalLink className="size-4" aria-hidden="true" />
@@ -131,7 +135,8 @@ function PairedDealButtons({
           <a
             href={paired[direction].bookingUrl}
             target="_blank"
-            rel="sponsored nofollow noopener noreferrer"
+            rel="sponsored nofollow noopener"
+            referrerPolicy="origin"
           >
             {direction === "outbound" ? "Outbound" : "Return"} ·{" "}
             {formatMoney(paired[direction].price, currency)}
