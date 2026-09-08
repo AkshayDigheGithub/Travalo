@@ -222,8 +222,10 @@ src/
     validation/             Zod schemas for every input
     affiliate/              outbound link signing and verification
     db/                     optional Postgres + schema.sql
+    seo/                    shared page metadata and JSON-LD builders
     utils/                  dates, slugs, URL search state
-  config/                   site, currencies, airports, airlines, destinations
+  config/                   site, currencies, airports, airlines, destinations,
+                            flight routes
   hooks/                    currency, media query, debounce
   types/                    normalized domain types
 ```
@@ -252,13 +254,33 @@ to the browser.
 
 ### SEO
 
-Editorial pages (home, `/flights`, `/hotels`, `/destinations/*`, `/deals`,
-legal) are statically rendered, indexable, and carry metadata, Open Graph and
-Twitter tags, canonical URLs and JSON-LD (`WebSite`, `TouristDestination`,
-`FAQPage`, `BreadcrumbList`). They are listed in `sitemap.xml`.
+Editorial pages (home, `/flights`, `/flights/*`, `/hotels`, `/destinations/*`,
+`/deals`, legal) are statically rendered and indexable. `src/lib/seo/metadata.ts`
+builds their metadata so every one carries the same complete set — canonical,
+`hreflang` (`en` + `x-default`), Open Graph, a Twitter card and a social image —
+and `src/lib/seo/schema.ts` builds the JSON-LD (`Organization` and `WebSite`
+once per page from the root layout, then `BreadcrumbList`, `FAQPage`,
+`TouristDestination` per page, sharing one `@id` per entity so the brand
+resolves as a single entity across the site).
 
-Dynamic search-result pages are `noindex, follow` and excluded in `robots.ts`,
-along with `/api/` and `/go`.
+**Route pages** (`/flights/london-to-new-york`) target the largest query family
+in travel. They are curated in `src/config/routes.ts` and `dynamicParams` is
+`false`, so the indexable surface can never drift past what is written by hand —
+109 airports would otherwise permit ~11,700 near-duplicate permutations, which is
+the thin content search engines demote. Each has its own Open Graph card
+rendered at build time.
+
+Everything on the site renders on the server. That is a constraint worth
+protecting: `useSearchParams()` in a client component opts its whole Suspense
+subtree out of static rendering, and because the currency provider wraps the
+entire app, one such call there previously left every page's HTML empty for any
+crawler that doesn't execute JavaScript. `src/hooks/use-currency.tsx` reads
+`window.location.search` inside its event handler instead.
+
+Dynamic search-result pages, hotel detail pages and `/go` are `noindex`, set
+both in metadata and as an `X-Robots-Tag` header in `next.config.ts`. Only
+`/api/`, `/go` and the two results routes are disallowed in `robots.ts` —
+a page blocked there is a page whose `noindex` is never read.
 
 ---
 

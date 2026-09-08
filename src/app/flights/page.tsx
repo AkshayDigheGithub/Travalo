@@ -3,32 +3,23 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { Section } from "@/components/common/section";
+import { JsonLd } from "@/components/common/json-ld";
 import { HeroSearch } from "@/features/search/hero-search";
-import { POPULAR_ROUTES } from "@/config/destinations";
-import { siteConfig } from "@/config/site";
-import { addDays, todayIso } from "@/lib/utils/date";
-import {
-  defaultFlightState,
-  defaultHotelState,
-  flightResultsHref,
-} from "@/lib/utils/search-params";
+import { FLIGHT_ROUTES, routeHref, routeSlug } from "@/config/routes";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbSchema } from "@/lib/seo/schema";
+import { defaultFlightState, defaultHotelState } from "@/lib/utils/search-params";
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/flights",
   title: "Flight search",
   description:
     "Search and compare flights worldwide. Filter by stops, airline, departure time and price, then book directly with the provider.",
-  alternates: { canonical: "/flights" },
-  openGraph: {
-    title: `Flight search · ${siteConfig.name}`,
-    description: "Search and compare flights worldwide, then book directly with the provider.",
-    url: `${siteConfig.url}/flights`,
-  },
-};
+});
 
 export default function FlightsPage() {
-  const departure = addDays(todayIso(), 21);
   const flightState = defaultFlightState();
 
   return (
@@ -54,18 +45,15 @@ export default function FlightsPage() {
         </div>
       </section>
 
-      <Section title="Popular routes" description="Jump straight into a prefilled search.">
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {POPULAR_ROUTES.map((route) => (
-            <li key={`${route.from}-${route.to}`}>
+      <Section
+        title="Popular flight routes"
+        description="Journey times, who flies each route nonstop and when fares are usually cheapest — with a live search on every page."
+      >
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {FLIGHT_ROUTES.map((route) => (
+            <li key={routeSlug(route)}>
               <Link
-                href={flightResultsHref({
-                  ...flightState,
-                  from: route.from,
-                  to: route.to,
-                  departure,
-                  return: addDays(departure, 7),
-                })}
+                href={routeHref(route)}
                 className="group flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card"
               >
                 <span className="min-w-0">
@@ -74,6 +62,9 @@ export default function FlightsPage() {
                   </span>
                   <span className="mt-0.5 block text-xs text-ink-subtle">
                     {route.from} → {route.to}
+                    {route.nonstopDuration
+                      ? ` · ${route.nonstopDuration.split("–")[0].trim()}`
+                      : ""}
                   </span>
                 </span>
                 <ArrowRight
@@ -115,6 +106,15 @@ export default function FlightsPage() {
           ))}
         </ol>
       </Section>
+
+      <JsonLd
+        schema={[
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Flights", path: "/flights" },
+          ]),
+        ]}
+      />
     </>
   );
 }

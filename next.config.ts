@@ -68,6 +68,19 @@ const nextConfig: NextConfig = {
         source: "/go",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
+      // Hotel detail and search-result pages already declare `noindex, follow`
+      // in their metadata. Repeating it as a header means the directive still
+      // arrives for a crawler that fetches the URL without parsing the HTML,
+      // and it is what lets robots.txt allow the fetch — a URL blocked there is
+      // a URL whose noindex is never seen.
+      {
+        source: "/hotels/:slug",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+      },
+      {
+        source: "/flights/results",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+      },
     ];
   },
 };

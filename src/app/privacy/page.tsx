@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 
 import { LegalPage } from "@/components/common/legal-page";
 import { siteConfig } from "@/config/site";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/privacy",
   title: "Privacy",
   description: `How ${siteConfig.name} handles data. Placeholder content pending legal review.`,
-  alternates: { canonical: "/privacy" },
-};
+});
 
 export default function PrivacyPage() {
   return (

@@ -4,23 +4,20 @@ import Link from "next/link";
 import { Section } from "@/components/common/section";
 import { TravelImage } from "@/components/common/travel-image";
 import { HeroSearch } from "@/features/search/hero-search";
+import { JsonLd } from "@/components/common/json-ld";
 import { DESTINATIONS } from "@/config/destinations";
-import { siteConfig } from "@/config/site";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbSchema } from "@/lib/seo/schema";
 import { defaultFlightState, defaultHotelState, hotelResultsHref } from "@/lib/utils/search-params";
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/hotels",
   title: "Hotel search",
   description:
     "Search hotels, apartments and resorts worldwide. Compare nightly rates, filter by star rating, guest score and amenities, then book with the provider.",
-  alternates: { canonical: "/hotels" },
-  openGraph: {
-    title: `Hotel search · ${siteConfig.name}`,
-    description: "Compare hotels worldwide and book directly with the provider.",
-    url: `${siteConfig.url}/hotels`,
-  },
-};
+});
 
 export default function HotelsPage() {
   const hotelState = defaultHotelState();
@@ -76,6 +73,15 @@ export default function HotelsPage() {
           ))}
         </div>
       </Section>
+
+      <JsonLd
+        schema={[
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Hotels", path: "/hotels" },
+          ]),
+        ]}
+      />
     </>
   );
 }

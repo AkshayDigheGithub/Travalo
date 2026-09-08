@@ -2,20 +2,17 @@ import type { Metadata } from "next";
 
 import { Section } from "@/components/common/section";
 import { DestinationCard } from "@/features/destinations/destination-card";
+import { JsonLd } from "@/components/common/json-ld";
 import { DESTINATIONS } from "@/config/destinations";
-import { siteConfig } from "@/config/site";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbSchema } from "@/lib/seo/schema";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/destinations",
   title: "Destinations",
   description:
     "Practical city guides for the destinations travellers ask about most — when to go, where to stay and how to get there.",
-  alternates: { canonical: "/destinations" },
-  openGraph: {
-    title: `Destinations · ${siteConfig.name}`,
-    description: "City guides with flight and hotel search for each destination.",
-    url: `${siteConfig.url}/destinations`,
-  },
-};
+});
 
 export default function DestinationsPage() {
   return (
@@ -46,6 +43,15 @@ export default function DestinationsPage() {
           ))}
         </div>
       </Section>
+
+      <JsonLd
+        schema={[
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Destinations", path: "/destinations" },
+          ]),
+        ]}
+      />
     </>
   );
 }

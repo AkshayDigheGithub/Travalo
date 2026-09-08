@@ -22,11 +22,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
 
+  // No Suspense boundary around CurrencyProvider: it existed only to contain a
+  // `useSearchParams()` bailout, and with children inside the provider it made
+  // that boundary the whole page — so the static HTML rendered as an empty
+  // fallback. The provider no longer suspends, so the page renders on the
+  // server as it should.
   return (
     <QueryClientProvider client={queryClient}>
-      <React.Suspense fallback={null}>
-        <CurrencyProvider>{children}</CurrencyProvider>
-      </React.Suspense>
+      <CurrencyProvider>{children}</CurrencyProvider>
     </QueryClientProvider>
   );
 }

@@ -4,8 +4,10 @@ import { AlertCircle, ArrowRight } from "lucide-react";
 
 import { Section } from "@/components/common/section";
 import { TravelImage } from "@/components/common/travel-image";
+import { JsonLd } from "@/components/common/json-ld";
 import { DESTINATIONS, POPULAR_ROUTES } from "@/config/destinations";
-import { siteConfig } from "@/config/site";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { breadcrumbSchema } from "@/lib/seo/schema";
 import { addDays, formatShortDate, todayIso } from "@/lib/utils/date";
 import {
   defaultFlightState,
@@ -16,17 +18,12 @@ import {
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/deals",
   title: "Travel deals",
   description:
     "Popular routes and destinations to search right now. Every link runs a live search — prices are whatever our travel partners are showing today.",
-  alternates: { canonical: "/deals" },
-  openGraph: {
-    title: `Travel deals · ${siteConfig.name}`,
-    description: "Popular routes and destinations, searched live.",
-    url: `${siteConfig.url}/deals`,
-  },
-};
+});
 
 export default async function DealsPage({
   searchParams,
@@ -131,6 +128,15 @@ export default async function DealsPage({
           ))}
         </div>
       </Section>
+
+      <JsonLd
+        schema={[
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Deals", path: "/deals" },
+          ]),
+        ]}
+      />
     </>
   );
 }
