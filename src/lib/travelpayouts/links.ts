@@ -53,16 +53,31 @@ function withMarker(url: URL, subId?: string): URL {
 }
 
 /**
+ * Carries the currency the traveller is being shown onto the partner page.
+ *
+ * Without it the partner picks its own default and a fare quoted here in
+ * rupees opens in dollars, which reads as a different price for the same seat.
+ */
+function withCurrency(url: URL, currency?: string): URL {
+  if (currency) url.searchParams.set("currency", currency.toLowerCase());
+  return url;
+}
+
+/**
  * Turns the relative `link` returned by the flight price API into an absolute
  * Aviasales URL carrying our marker.
  */
-export function buildFlightDeepLink(providerLink: string | undefined, subId?: string): string {
+export function buildFlightDeepLink(
+  providerLink: string | undefined,
+  subId?: string,
+  currency?: string,
+): string {
   const base = providerLink?.startsWith("http")
     ? providerLink
     : `${AVIASALES_HOST}${providerLink ?? ""}`;
 
   const url = new URL(providerLink ? base : AVIASALES_HOST);
-  return withMarker(url, subId).toString();
+  return withCurrency(withMarker(url, subId), currency).toString();
 }
 
 /**
@@ -76,6 +91,7 @@ export function buildFlightSearchLink(input: {
   departure: string;
   return?: string;
   passengers: number;
+  currency?: string;
   subId?: string;
 }): string {
   const segment = (date: string) => `${date.slice(8, 10)}${date.slice(5, 7)}`;
@@ -84,7 +100,7 @@ export function buildFlightSearchLink(input: {
     `${input.return ? segment(input.return) : ""}${Math.min(Math.max(input.passengers, 1), 9)}`;
 
   const url = new URL(`${AVIASALES_HOST}${path}`);
-  return withMarker(url, input.subId).toString();
+  return withCurrency(withMarker(url, input.subId), input.currency).toString();
 }
 
 export function buildHotelDeepLink(input: {
@@ -105,10 +121,9 @@ export function buildHotelDeepLink(input: {
   url.searchParams.set("checkIn", input.checkIn);
   url.searchParams.set("checkOut", input.checkOut);
   url.searchParams.set("adults", String(input.adults));
-  url.searchParams.set("currency", input.currency.toLowerCase());
   url.searchParams.set("language", "en");
 
-  return withMarker(url, input.subId).toString();
+  return withCurrency(withMarker(url, input.subId), input.currency).toString();
 }
 
 /** Airline logo CDN operated by Travelpayouts/Aviasales. */

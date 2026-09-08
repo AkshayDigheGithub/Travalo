@@ -148,6 +148,7 @@ async function mockSearchFlights(input: FlightSearchInput, ctx: SearchContext) {
       departure: input.departure,
       return: input.return,
       passengers: input.adults + input.children,
+      currency: input.currency,
       subId,
     });
 
