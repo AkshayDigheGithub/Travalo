@@ -59,8 +59,10 @@ export default function PrivacyPage() {
         <p>
           We store your chosen display currency in a cookie so it persists between visits, and a
           random session identifier in your browser&apos;s session storage for anonymous analytics.
-          The application is built so that a consent mechanism can be added before any additional or
-          third-party tracking is introduced.
+          We also use Vercel Web Analytics to count page views and measure page speed: it sets no
+          cookies of its own, does not follow you to other sites, and its requests are served from
+          this domain. The application is built so that a consent mechanism can be added before any
+          additional or third-party tracking is introduced.
         </p>
       </section>
 

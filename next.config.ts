@@ -6,6 +6,14 @@ import type { NextConfig } from "next";
  * strict-origin-when-cross-origin means a partner site receives our origin at
  * most — never the search URL a visitor came from.
  */
+/**
+ * In production the Vercel Analytics script is served from this origin under
+ * /_vercel/insights. In development it comes from Vercel's debug host instead,
+ * so that one host is allowed there and nowhere else.
+ */
+const analyticsScriptHost =
+  process.env.NODE_ENV === "production" ? "" : " https://va.vercel-scripts.com";
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -24,7 +32,7 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // Next.js injects inline bootstrap scripts and inline styles.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval'${analyticsScriptHost}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https://pics.avs.io https://photo.hotellook.com https://images.unsplash.com",
