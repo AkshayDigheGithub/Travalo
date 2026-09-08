@@ -66,9 +66,7 @@ export function FlightCard({
             currency={result.currency}
             source={result.priceSource}
             size="lg"
-            caption={
-              result.pairedFare ? "two one-way fares" : travellers > 1 ? "per traveller" : undefined
-            }
+            caption={priceCaption(result, travellers)}
           />
           {result.pairedFare ? (
             <PairedDealButtons paired={result.pairedFare} currency={result.currency} />
@@ -90,6 +88,15 @@ export function FlightCard({
       </div>
     </article>
   );
+}
+
+/** Says what the headline price covers: how it was assembled, and for whom. */
+function priceCaption(result: FlightResult, travellers: number): string | undefined {
+  const parts = [
+    result.pairedFare ? "two one-way fares" : null,
+    travellers > 1 ? "per traveller" : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 /** Both carriers are named when the two halves of a paired trip differ. */
