@@ -21,6 +21,25 @@ type Entry = {
   images?: string[];
 };
 
+/**
+ * Next.js builds the sitemap document by concatenating our values straight into
+ * XML — see `resolve-route-data.js` in the installed `next` package, which
+ * escapes nothing, in `<loc>`, `<image:loc>` or the `hreflang` hrefs alike. So a
+ * single raw `&` makes the file unparseable from that line onwards, and every
+ * Unsplash hero URL carries three of them.
+ *
+ * These are exactly the five entities the sitemap protocol requires URLs to be
+ * escaped with, and we apply them on the way in because Next will not.
+ */
+function xmlEscape(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 /** Hubs and search pages have no editorial content of their own, so the build date is the honest lastmod. */
 const BUILD_DATE = new Date();
 
@@ -61,12 +80,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })),
   ];
 
-  return entries.map((entry) => ({
-    url: entry.path === "/" ? siteConfig.url : `${siteConfig.url}${entry.path}`,
-    lastModified: entry.lastModified,
-    changeFrequency: entry.changeFrequency,
-    priority: entry.priority,
-    alternates: { languages: languageAlternates(entry.path) },
-    ...(entry.images ? { images: entry.images } : {}),
-  }));
+  return entries.map((entry) => {
+    const languages = languageAlternates(entry.path);
+
+    return {
+      url: xmlEscape(entry.path === "/" ? siteConfig.url : `${siteConfig.url}${entry.path}`),
+      lastModified: entry.lastModified,
+      changeFrequency: entry.changeFrequency,
+      priority: entry.priority,
+      alternates: {
+        languages: Object.fromEntries(
+          Object.entries(languages).map(([language, url]) => [language, xmlEscape(url)]),
+        ),
+      },
+      ...(entry.images ? { images: entry.images.map(xmlEscape) } : {}),
+    };
+  });
 }
