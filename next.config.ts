@@ -44,6 +44,25 @@ const securityHeaders = [
   },
 ];
 
+/**
+ * The host this site calls canonical, taken from the same variables that build
+ * every canonical URL, so the redirect below can never disagree with them.
+ */
+function canonicalHost(): string | undefined {
+  const raw =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ??
+    process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
+  if (!raw?.trim()) return undefined;
+
+  try {
+    return new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -57,13 +76,39 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24,
   },
+  /**
+   * www and the apex both serve the whole site, so search engines see two
+   * copies of every page and split the ranking signals between them.
+   *
+   * The direction follows whichever host is canonical rather than being
+   * hardcoded, so this cannot end up pointing away from the host the sitemap,
+   * hreflang and metadataBase all name — and cannot loop if that host is
+   * itself the www one. 301 rather than `permanent: true`, which sends a 308:
+   * both are permanent to Google, but 301 is what older clients expect.
+   */
+  async redirects() {
+    const canonical = canonicalHost();
+    // Nothing to deduplicate on localhost or before the domain is configured.
+    if (!canonical || canonical === "localhost") return [];
+
+    const duplicate = canonical.startsWith("www.") ? canonical.slice(4) : `www.${canonical}`;
+
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host" as const, value: duplicate }],
+        destination: `https://${canonical}/:path*`,
+        statusCode: 301,
+      },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
       // The affiliate exit is never indexed. Its referrer is already covered by
-      // the site-wide strict-origin-when-cross-origin policy (which sends only
-      // the origin, never the search URL) plus rel="noreferrer" on every
-      // outbound link, so there is no per-route referrer rule here.
+      // the site-wide strict-origin-when-cross-origin policy plus
+      // referrerPolicy="origin" on every outbound link — both send the origin
+      // and never the search URL — so there is no per-route referrer rule here.
       {
         source: "/go",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],

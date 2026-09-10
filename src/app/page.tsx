@@ -48,8 +48,11 @@ export default function HomePage() {
               <span className="size-1.5 rounded-full bg-brand-600" aria-hidden="true" />
               Flights and hotels, one search
             </p>
+            {/* The H1 states what the page does in the words the copy beneath it
+                uses, so heading and body back each other up instead of the
+                heading introducing vocabulary that appears nowhere else. */}
             <h1 className="text-4xl leading-[1.05] font-semibold tracking-tight text-ink sm:text-5xl lg:text-6xl">
-              Discover your next journey
+              Compare flights and hotels worldwide
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-muted sm:text-lg">
               Compare flights and hotels worldwide and find great travel deals — then book straight

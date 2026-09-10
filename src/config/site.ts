@@ -30,16 +30,21 @@ function resolveSiteUrl(): string {
 /**
  * Single source of truth for brand-level strings and navigation.
  * Change the values here to rebrand the product; nothing else hardcodes the name.
+ *
+ * `name` is the display brand and deliberately not the domain: a bare domain in
+ * every `<title>` spends the title's most valuable characters on something the
+ * searcher can already see in the result URL. `url` and `contactEmail` are the
+ * real domain and address, so they keep the TLD.
  */
 export const siteConfig = {
-  name: "bookmyflight.lol",
+  name: "BookMyFlight",
   tagline: "Compare flights and hotels worldwide.",
   description:
-    "bookmyflight.lol is a global flight and hotel metasearch. Compare fares and stays across hundreds of travel sites, then book directly with the provider.",
+    "BookMyFlight is a global flight and hotel metasearch. Compare fares and stays across hundreds of travel sites, then book directly with the provider.",
   url: resolveSiteUrl(),
   locale: "en",
   contactEmail: "hello@bookmyflight.lol",
-  legalEntity: "bookmyflight.lol",
+  legalEntity: "BookMyFlight",
   founded: 2026,
 } as const;
 
